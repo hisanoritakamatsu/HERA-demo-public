@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HERA</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <h1>HERA</h1>
+
+  <h2>関節リウマチのための手指運動プログラム</h2>
+
+  <p>今日も一緒に手を動かしましょう。</p>
+
+<p>
+  <label for="patientId">患者ID：</label>
+ 
+<input type="text" id="patientId" placeholder="例：HERA001" readonly>
+
+</p>
+
+  
+<button onclick="if (savePatientId()) location.href='exercise_10.html'">今日のHERAを始める</button>
+
+<p>
+  <button onclick="location.href='history.html'">運動実施履歴を見る</button>
+</p>
+<p>
+  <button onclick="location.href='pain_history.html'">疼痛記録を見る</button>
+</p><p><button onclick="location.href='absence_history.html'">未実施理由の履歴を見る</button></p>
+
+<section id="absenceReasonSection"
+         style="display: none; margin: 24px auto; padding: 20px;
+                max-width: 480px; background: #f3f7f2;
+                border-radius: 12px;">
+
+  <h3>運動の記録について</h3>
+
+  <p id="absenceMessage"></p>
+
+  <p>運動の記録がなかった理由を教えてください。</p>
+
+  <p>当てはまる項目を選択してください（複数選択可）。</p>
+
+  <p><label><input type="checkbox" name="absenceReason" value="疼痛"> 手指の痛みがあった</label></p>
+  <p><label><input type="checkbox" name="absenceReason" value="疲労"> 疲労が強かった</label></p>
+  <p><label><input type="checkbox" name="absenceReason" value="体調不良"> 体調が悪かった</label></p>
+  <p><label><input type="checkbox" name="absenceReason" value="時間不足"> 時間がなかった</label></p>
+  <p><label><input type="checkbox" name="absenceReason" value="失念"> 運動を忘れていた</label></p>
+  <p><label><input type="checkbox" name="absenceReason" value="記録忘れ"> 運動したが記録しなかった</label></p>
+  <p><label><input type="checkbox" name="absenceReason" value="その他"> その他</label></p>
+
+  <button type="button" id="saveAbsenceReasonButton">回答する</button>
+  <button type="button" id="skipAbsenceReasonButton">今回は回答しない</button>
+
+</section>
+<script>
+
+const patientIdInput = document.getElementById("patientId");
+const savedPatientId = localStorage.getItem("hera_patient_id_v1");
+
+if (savedPatientId) {
+  patientIdInput.value = savedPatientId;
+  patientIdInput.readOnly = false;
+} else {
+  patientIdInput.readOnly = false;
+}
+
+
+  function savePatientId() {
+    const patientId = document.getElementById("patientId").value.trim();
+
+    if (patientId === "") {
+      alert("患者IDを入力してください。");
+      return false;
+    }
+if (!/^DEMO[0-9]+$/.test(patientId)) {
+  alert("デモ版です。DEMO001などのテスト用IDを入力してください。");
+  return false;
+}
+    localStorage.setItem("hera_patient_id_v1", patientId);
+    return true;
+  }
+  patientIdInput.addEventListener("change", () => {
+  const oldId = localStorage.getItem("hera_patient_id_v1") || "";
+  const newId = patientIdInput.value.trim();
+
+  if (newId === oldId) {
+    return;
+  }
+
+  const confirmed = confirm(
+    `患者IDを「${newId}」に変更しますか？`
+  );
+
+  if (confirmed) {
+    if (!savePatientId()) {
+      patientIdInput.value = oldId;
+    }
+  } else {
+    patientIdInput.value = oldId;
+  }
+});
+function checkAbsenceReason() {
+  const patientId = localStorage.getItem("hera_patient_id_v1");
+  const section = document.getElementById("absenceReasonSection");
+  const message = document.getElementById("absenceMessage");
+
+  section.style.display = "none";
+
+  if (!patientId) return;
+
+  let records = [];
+
+  try {
+    records = JSON.parse(
+      localStorage.getItem("hera_exercise_records_v1") || "[]"
+    );
+    if (!Array.isArray(records)) records = [];
+  } catch (error) {
+    return;
+  }
+
+  const patientRecords = records.filter(record =>
+    record &&
+    record.patientId === patientId &&
+    typeof record.date === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(record.date) &&
+    Array.isArray(record.completed)
+  );
+
+  // 日付ごとに実施した種目をまとめる
+  const exercisesByDate = {};
+
+  patientRecords.forEach(record => {
+    if (!exercisesByDate[record.date]) {
+      exercisesByDate[record.date] = new Set();
+    }
+
+    record.completed.forEach(index => {
+      if (Number.isInteger(index) && index >= 0 && index < 10) {
+        exercisesByDate[record.date].add(index);
+      }
+    });
+  });
+
+  // 初回10種目完了日を探す
+  const completedDates = Object.keys(exercisesByDate)
+    .filter(date => exercisesByDate[date].size === 10)
+    .sort();
+
+  if (completedDates.length === 0) return;
+
+  const startDate = completedDates[0];
+
+  const toDayNumber = dateString => {
+    const [year, month, day] = dateString.split("-").map(Number);
+    return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+  };
+
+  const startDay = toDayNumber(startDate);
+
+  const today = new Date();
+  const todayDay = Math.floor(
+    Date.UTC(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    ) / 86400000
+  );
+
+  // 評価期間は開始日から28日間
+  const elapsedDays = todayDay - startDay;
+
+  if (elapsedDays < 2 || elapsedDays >= 28) return;
+
+  // 昨日から遡って連続未記録日数を数える
+  let absentDays = 0;
+
+  for (let day = todayDay - 1; day > startDay; day--) {
+    const date = new Date(day * 86400000);
+    const dateKey = date.toISOString().slice(0, 10);
+
+    if (
+      exercisesByDate[dateKey] &&
+      exercisesByDate[dateKey].size > 0
+    ) {
+      break;
+    }
+
+    absentDays++;
+  }
+// 同じ未記録期間に回答済みか確認する
+const absenceReasonKey = "hera_absence_reasons_v1";
+
+let savedReasons = [];
+
+try {
+  savedReasons = JSON.parse(
+    localStorage.getItem(absenceReasonKey) || "[]"
+  );
+
+  if (!Array.isArray(savedReasons)) {
+    savedReasons = [];
+  }
+} catch (error) {
+  savedReasons = [];
+}
+
+// 未記録期間の終了日は昨日
+const yesterday = new Date((todayDay - 1) * 86400000)
+  .toISOString()
+  .slice(0, 10);
+
+// 現在の未記録期間について回答済みか確認
+const currentAbsenceStartDate = new Date(
+  (todayDay - absentDays) * 86400000
+).toISOString().slice(0, 10);
+
+const alreadyAnswered = savedReasons.some(record =>
+  record &&
+  record.patientId === patientId &&
+  record.absenceStartDate === currentAbsenceStartDate
+);
+
+if (alreadyAnswered) {
+  return;
+}
+ if (absentDays >= 2) {
+
+  // 未記録期間の開始日と終了日を計算
+  const absenceStartDay = todayDay - absentDays;
+  const absenceEndDay = todayDay - 1;
+
+  const toDateString = dayNumber => {
+    return new Date(dayNumber * 86400000)
+      .toISOString()
+      .slice(0, 10);
+  };
+
+  const absenceStartDate = toDateString(absenceStartDay);
+  const absenceEndDate = toDateString(absenceEndDay);
+
+  // 保存処理で利用できるようにする
+  section.dataset.absenceStartDate = absenceStartDate;
+  section.dataset.absenceEndDate = absenceEndDate;
+  section.dataset.absentDays = String(absentDays);
+
+  message.textContent =
+    `${absenceStartDate}〜${absenceEndDate}の` +
+    `${absentDays}日間、運動の記録がありませんでした。`;
+
+  section.style.display = "block";
+}
+}
+const ABSENCE_REASON_KEY = "hera_absence_reasons_v1";
+
+document.getElementById("saveAbsenceReasonButton")
+  .addEventListener("click", () => {
+
+    const patientId = localStorage.getItem("hera_patient_id_v1");
+
+    const selectedReasons = [
+      ...document.querySelectorAll(
+        'input[name="absenceReason"]:checked'
+      )
+    ].map(input => input.value);
+
+    if (!patientId) {
+      alert("患者IDが設定されていません。");
+      return;
+    }
+
+    if (selectedReasons.length === 0) {
+      alert("理由を1つ以上選択してください。");
+      return;
+    }
+
+    let records = [];
+
+    try {
+      records = JSON.parse(
+        localStorage.getItem(ABSENCE_REASON_KEY) || "[]"
+      );
+
+      if (!Array.isArray(records)) records = [];
+    } catch (error) {
+      alert("保存済みの理由を読み込めませんでした。");
+      return;
+    }
+
+    const now = new Date();
+
+    const answerDate =
+      `${now.getFullYear()}-` +
+      `${String(now.getMonth() + 1).padStart(2, "0")}-` +
+      `${String(now.getDate()).padStart(2, "0")}`;
+
+    const section = document.getElementById("absenceReasonSection");
+
+const absenceStartDate = section.dataset.absenceStartDate;
+const absenceEndDate = section.dataset.absenceEndDate;
+const absentDays = Number(section.dataset.absentDays);
+
+// 未記録期間が取得できているか確認
+if (
+  !absenceStartDate ||
+  !absenceEndDate ||
+  !Number.isInteger(absentDays) ||
+  absentDays < 2
+) {
+  alert("未記録期間を確認できませんでした。");
+  return;
+}
+
+records.push({
+  patientId: patientId,
+  absenceStartDate: absenceStartDate,
+  absenceEndDate: absenceEndDate,
+  absentDays: absentDays,
+  answerDate: answerDate,
+  reasons: selectedReasons
+});
+
+    try {
+      localStorage.setItem(
+        ABSENCE_REASON_KEY,
+        JSON.stringify(records)
+      );
+    } catch (error) {
+      alert("回答を保存できませんでした。");
+      return;
+    }
+
+    alert("回答を保存しました。");
+
+    document.getElementById(
+      "absenceReasonSection"
+    ).style.display = "none";
+  });
+  // 「今回は回答しない」ボタン
+document.getElementById("skipAbsenceReasonButton")
+  .addEventListener("click", () => {
+
+    const patientId = localStorage.getItem("hera_patient_id_v1");
+    const section = document.getElementById("absenceReasonSection");
+
+    const absenceStartDate = section.dataset.absenceStartDate;
+    const absenceEndDate = section.dataset.absenceEndDate;
+    const absentDays = Number(section.dataset.absentDays);
+
+    if (!patientId || !absenceStartDate || !absenceEndDate ||
+        !Number.isInteger(absentDays) || absentDays < 2) {
+      alert("未記録期間を確認できませんでした。");
+      return;
+    }
+
+    const key = "hera_absence_reasons_v1";
+
+    let records = [];
+
+    try {
+      records = JSON.parse(localStorage.getItem(key) || "[]");
+
+      if (!Array.isArray(records)) {
+        throw new Error("保存形式が不正です");
+      }
+    } catch (error) {
+      alert("保存済みのデータを読み込めませんでした。");
+      return;
+    }
+
+    const now = new Date();
+
+    const answerDate =
+      `${now.getFullYear()}-` +
+      `${String(now.getMonth() + 1).padStart(2, "0")}-` +
+      `${String(now.getDate()).padStart(2, "0")}`;
+
+    records.push({
+      patientId: patientId,
+      absenceStartDate: absenceStartDate,
+      absenceEndDate: absenceEndDate,
+      absentDays: absentDays,
+      answerDate: answerDate,
+      reasons: [],
+      skipped: true
+    });
+
+    try {
+      localStorage.setItem(key, JSON.stringify(records));
+    } catch (error) {
+      alert("回答の見送りを保存できませんでした。");
+      return;
+    }
+
+    section.style.display = "none";
+
+  });
+checkAbsenceReason();
+
+</script>
+
+</body>
+</html>

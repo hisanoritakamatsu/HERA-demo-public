@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今日のHERA</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <p>今日のHERA　1 / 6</p>
+
+    <h1>グーパー運動</h1>
+   <video id="exerciseVideo" width="340" playsinline loop>
+    <source src="グーパー運動.mp4" type="video/mp4">
+    お使いのブラウザでは動画を再生できません。
+</video>
+
+    <h2>準備運動①</h2>
+
+    <p>
+        手をゆっくり開いて、<br>
+        ゆっくり握りましょう。
+    </p>
+
+    <h2>10回</h2>
+
+   <button id="startButton" onclick="startExercise()">
+  運動を開始
+</button>
+
+<div id="completeArea" style="display:none;">
+  <p>動画を見ながら10回運動しましょう。</p>
+  <button onclick="completeExercise()">
+    10回終了しました
+  </button>
+</div>
+
+<div id="nextArea" style="display:none;">
+  <h2>お疲れさまでした！</h2>
+  <p>グーパー運動が終了しました。</p>
+  <button onclick="nextExercise()">
+    次の運動へ →
+  </button>
+</div>
+<script>
+function startExercise() {
+    const video = document.getElementById("exerciseVideo");
+
+    video.currentTime = 0;
+    video.play();
+
+    document.getElementById("startButton").style.display = "none";
+    document.getElementById("completeArea").style.display = "block";
+}
+
+function completeExercise() {
+    const video = document.getElementById("exerciseVideo");
+
+    video.pause();
+    video.currentTime = 0;
+
+    document.getElementById("completeArea").style.display = "none";
+    document.getElementById("nextArea").style.display = "block";
+}
+
+function nextExercise() {
+    const video = document.getElementById("exerciseVideo");
+
+    // 2種目目の動画に変更
+    video.pause();
+    video.src = "手首回し運動.mp4";
+    video.load();
+
+    // 画面の表示を変更
+    document.querySelector("h1").textContent = "手首回し運動";
+    document.querySelector("h2").textContent = "準備運動②";
+
+    document.querySelector("p").textContent = "今日のHERA 2 / 6";
+
+    // ボタンを元に戻す
+    document.getElementById("nextArea").style.display = "none";
+    document.getElementById("completeArea").style.display = "none";
+    document.getElementById("startButton").style.display = "inline-block";
+}
+</script>
+</body>
+
+</html>

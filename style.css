@@ -1,0 +1,55 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f4f8f7;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  color: #263238;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+h1 {
+  color: #24796b;
+  font-size: 48px;
+  margin-bottom: 10px;
+  letter-spacing: 3px;
+}
+
+h2 {
+  font-size: 21px;
+  font-weight: 600;
+  margin-bottom: 30px;
+}
+
+p {
+  font-size: 18px;
+  color: #546e7a;
+  margin-bottom: 35px;
+}
+
+button {
+  background: #24796b;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 17px 35px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+button:hover {
+  opacity: 0.9;
+}
+/* 無効なボタンは灰色で表示 */
+button:disabled {
+  background-color: #b0b0b0;
+  color: #ffffff;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}

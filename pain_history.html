@@ -1,0 +1,314 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HERA | 疼痛記録</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main style="max-width: 600px; margin: 30px auto; padding: 20px; text-align: center;">
+    <h1>疼痛記録</h1>
+    <p>運動前後の疼痛スコアを日付ごとに確認できます。</p>
+
+    <div id="painHistoryList">
+  <p>疼痛記録を読み込みます。</p>
+</div>
+
+<h2>疼痛スコアの推移</h2>
+<div id="painChart" style="width:100%; overflow-x:auto;">
+  <svg id="painChartSvg"
+     viewBox="0 0 560 300"
+     style="width:100%; max-width:560px; height:auto;"
+     role="img"
+     aria-label="運動前後の疼痛スコアの推移グラフ">
+
+  <line x1="55" y1="20" x2="55" y2="250"
+        stroke="#666" stroke-width="2"/>
+
+  <line x1="55" y1="250" x2="530" y2="250"
+        stroke="#666" stroke-width="2"/>
+
+  <text x="15" y="25" font-size="14">100</text>
+  <text x="25" y="140" font-size="14">50</text>
+  <text x="35" y="255" font-size="14">0</text>
+
+</svg>
+
+<div style="display:flex; justify-content:center; gap:25px; margin-top:10px;">
+  <span style="color:#2878c8;">● 運動前</span>
+  <span style="color:#e58a32;">● 運動後</span>
+</div>
+
+</div>
+
+<p><button id="downloadCsvButton" type="button">疼痛記録をCSVで保存</button></p>
+
+<p><a href="index.html">トップ画面に戻る</a></p>
+  </main>
+
+<script>
+  const historyList = document.getElementById("painHistoryList");
+const downloadCsvButton = document.getElementById("downloadCsvButton");
+
+downloadCsvButton.addEventListener("click", () => {
+  const records = JSON.parse(
+    localStorage.getItem("hera_pain_history_v1") || "[]"
+  );
+
+const patientId = localStorage.getItem("hera_patient_id_v1");
+const patientRecords = records.filter(record =>
+  record.patientId === patientId
+);
+
+  if (!Array.isArray(records) || patientRecords.length === 0) {
+    alert("保存する疼痛記録がありません。");
+    return;
+  }
+
+  const rows = [
+    ["患者ID", "日付", "運動前", "運動後", "変化量"],
+   ...patientRecords.map(record => [
+  record.patientId ?? "",
+  record.date,
+  record.prePain ?? "",
+      record.postPain ?? "",
+      record.prePain != null && record.postPain != null
+        ? Number(record.postPain) - Number(record.prePain)
+        : ""
+    ])
+  ];
+
+  const csv = rows.map(row => row.join(",")).join("\r\n");
+
+const blob = new Blob(["\uFEFF" + csv], {
+  type: "text/csv;charset=utf-8;"
+});
+
+const url = URL.createObjectURL(blob);
+const link = document.createElement("a");
+
+link.href = url;
+link.download = "HERA_疼痛記録.csv";
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+
+setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+});
+
+  try {
+    const records = JSON.parse(
+      localStorage.getItem("hera_pain_history_v1") || "[]"
+    );
+const patientId = localStorage.getItem("hera_patient_id_v1");
+   const patientRecords = records.filter(record =>
+  record.patientId === patientId
+);
+    if (!Array.isArray(records)) {
+      throw new Error("記録形式が正しくありません");
+    }
+
+   
+if (patientRecords.length === 0) {
+      historyList.textContent = "まだ疼痛記録がありません。";
+    } else {
+      historyList.textContent = "";
+ 
+patientRecords.sort((a, b) => b.date.localeCompare(a.date));
+
+let graphRecords = [...patientRecords].sort((a, b) =>
+  a.date.localeCompare(b.date)
+);
+
+const useTestData = false;
+
+const testRecords = Array.from({ length: 14 }, (_, i) => ({
+  date: `2026-10-${String(i + 1).padStart(2, "0")}`,
+  prePain: 65 - i * 2,
+  postPain: 45 - i
+}));
+
+if (useTestData) {
+  graphRecords = testRecords;
+}
+
+const graphLeft = 80;
+const graphRight = 510;
+const graphWidth = graphRight - graphLeft;
+
+function getGraphX(index, total) {
+  if (total === 1) {
+    return (graphLeft + graphRight) / 2;
+  }
+  return graphLeft + (index / (total - 1)) * graphWidth;
+}
+
+const prePainPoints = [];
+const postPainPoints = [];
+
+const svg = document.getElementById("painChartSvg");
+
+if (svg && records.length > 0) {
+graphRecords.forEach((record, index) => {
+  
+const latestRecord = record;
+
+const dateLabel = document.createElementNS(
+  "http://www.w3.org/2000/svg", "text"
+);
+
+dateLabel.setAttribute("x", String(getGraphX(index, graphRecords.length)));
+dateLabel.setAttribute("y", "275");
+dateLabel.setAttribute("text-anchor", "middle");
+dateLabel.setAttribute("font-size", "12");
+dateLabel.setAttribute("fill", "#555");
+dateLabel.textContent = record.date.slice(5).replace("-", "/");
+
+const labelInterval = Math.ceil(graphRecords.length / 7);
+
+if (
+  index % labelInterval === 0 ||
+  (index === graphRecords.length - 1 &&
+   index % labelInterval !== 1)
+) {
+  svg.appendChild(dateLabel);
+}
+
+  const score = Number(latestRecord.prePain);
+
+  if (latestRecord.prePain != null &&
+      Number.isFinite(score) &&
+      score >= 0 && score <= 100) {
+    const y = 250 - (score / 100) * 230;
+
+    const point = document.createElementNS(
+      "http://www.w3.org/2000/svg", "circle"
+    );
+
+    
+point.setAttribute("cx", String(getGraphX(index, graphRecords.length)));
+
+    point.setAttribute("cy", String(y));
+    point.setAttribute("r", "6");
+    point.setAttribute("fill", "#2878c8");
+
+    svg.appendChild(point);
+
+prePainPoints.push({
+  x: getGraphX(index, graphRecords.length),
+  y: y
+});
+
+const postScore = Number(latestRecord.postPain);
+
+if (latestRecord.postPain != null &&
+    Number.isFinite(postScore) &&
+    postScore >= 0 && postScore <= 100) {
+
+  const postY = 250 - (postScore / 100) * 230;
+
+  const postPoint = document.createElementNS(
+    "http://www.w3.org/2000/svg", "circle"
+  );
+
+postPoint.setAttribute("cx", String(getGraphX(index, graphRecords.length)));
+postPoint.setAttribute("cy", String(postY));
+postPoint.setAttribute("r", "6");
+postPoint.setAttribute("fill", "#e58a32");
+  
+  svg.appendChild(postPoint);
+postPainPoints.push({
+  x: getGraphX(index, graphRecords.length),
+  y: postY
+});
+
+}
+  }
+ 
+  });
+}
+
+if (prePainPoints.length >= 2) {
+
+  const preLine = document.createElementNS(
+    "http://www.w3.org/2000/svg", "polyline"
+  );
+
+  preLine.setAttribute(
+    "points",
+    prePainPoints.map(p => `${p.x},${p.y}`).join(" ")
+  );
+  preLine.setAttribute("fill", "none");
+  preLine.setAttribute("stroke", "#2878c8");
+  preLine.setAttribute("stroke-width", "2");
+
+  svg.appendChild(preLine);
+}
+
+if (postPainPoints.length >= 2) {
+  const postLine = document.createElementNS(
+    "http://www.w3.org/2000/svg", "polyline"
+  );
+
+  postLine.setAttribute(
+    "points",
+    postPainPoints.map(p => `${p.x},${p.y}`).join(" ")
+  );
+  postLine.setAttribute("fill", "none");
+  postLine.setAttribute("stroke", "#e58a32");
+  postLine.setAttribute("stroke-width", "2");
+
+  svg.appendChild(postLine);
+}
+patientRecords.forEach(record => {
+
+        const card = document.createElement("div");
+        card.style.cssText =
+  "background:#f3f7f2; padding:20px; margin:15px 0; border-radius:12px; white-space:pre-line; line-height:2;";
+
+        const pre = record.prePain ?? "--";
+        const post = record.postPain ?? "--";
+
+        let change = "--";
+let changeLabel = "";
+
+if (record.prePain != null && record.postPain != null) {
+  const difference = record.postPain - record.prePain;
+  change = difference > 0 ? `+${difference}` : difference;
+
+  if (difference < 0) {
+  changeLabel = "（改善）";
+} else if (difference > 0) {
+  changeLabel = "（悪化）";
+} else {
+  changeLabel = "（変化なし）";
+}
+}
+
+        card.textContent =
+  `${record.date}\n運動前：${pre} / 100\n運動後：${post} / 100\n`;
+
+const changeText = document.createElement("div");
+changeText.textContent = `変化：${change} ポイント ${changeLabel}`;
+
+if (changeLabel === "（改善）") {
+  changeText.style.color = "#207a45";
+} else if (changeLabel === "（悪化）") {
+  changeText.style.color = "#c0392b";
+}
+
+card.appendChild(changeText);
+        historyList.appendChild(card);
+      });
+    }
+  } catch (error) {
+    historyList.textContent = "疼痛記録を読み込めませんでした。";
+    console.error(error);
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>今日のHERA | 10種目</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .hera-wrap {max-width: 520px; margin: 20px auto; padding: 0 16px 36px; text-align: center;}
+    .hera-progress {font-weight: bold; color: #477b30;}
+    .hera-video {width: 100%; max-width: 420px; border-radius: 12px; background: #f3f5f1;}
+    .hera-placeholder {max-width: 420px; margin: 14px auto; padding: 65px 12px; border-radius: 12px; background: #f3f5f1; color: #566452;}
+    .hera-description {
+  line-height: 1.8;
+  white-space: pre-line;
+  text-align: left;
+}
+    .hera-controls {margin-top: 18px;}
+    .hera-controls button {margin: 6px; padding: 12px 22px; cursor: pointer;}
+    .hera-note {font-size: .9rem; color: #555;}
+
+#completeMessage {
+  text-align: left;
+  line-height: 1.8;
+}
+
+.hera-hidden {display: none !important;}
+  </style>
+</head>
+<body>
+  <main class="hera-wrap">
+
+    <div id="prePainScreen" style="background: #f3f7f2; padding: 24px; border-radius: 12px; margin-bottom: 20px;">
+      <h2>運動前の疼痛評価</h2>
+      <p>現在の手指の痛みを教えてください。</p>
+
+      <p><strong id="prePainValue">0</strong> / 100</p>
+
+      <input
+        type="range"
+        id="prePainSlider"
+        min="0"
+        max="100"
+        value="0"
+        style="width: 100%;"
+      >
+
+      <p>0：痛みなし　100：想像できる最悪の痛み</p>
+
+      <button id="prePainButton" type="button">
+        痛みを記録して運動へ進む
+      </button>
+    </div>
+
+    
+    <div id="exerciseScreen" class="hera-hidden">
+      <p id="progress" class="hera-progress">今日のHERA 1 / 10</p>
+
+    <div id="exerciseHeader">
+  <h2 id="category">可動域訓練 1 / 5</h2>
+  <h1 id="exerciseName">拳曲げ運動</h1>
+</div>
+
+    <video id="exerciseVideo" class="hera-video hera-hidden" playsinline loop preload="auto"></video>
+    <div id="videoPlaceholder" class="hera-placeholder">動画準備中</div>
+
+    <div id="exerciseDetails">
+  <p id="description" class="hera-description"></p>
+  <h2 id="repetitions">10回</h2>
+  <p class="hera-note">痛みのない範囲で、無理せず実施してください。</p>
+</div>
+
+    <div id="exerciseControls" class="hera-controls">
+      <button id="startButton" type="button">運動を開始</button>
+      <div id="completeArea" class="hera-hidden">
+        <p>運動が終わったら、下のボタンを押してください。</p>
+       <button id="completeButton" type="button">この運動を終了しました</button>
+      </div>
+      <div id="nextArea" class="hera-hidden">
+        <h2>お疲れさまでした！</h2>
+        <p id="completeMessage"></p>
+        <button id="nextButton" type="button">次の運動へ →</button>
+      </div>
+    </div>
+
+<div id="postPainScreen" class="hera-hidden" style="background: #f3f7f2; padding: 24px; border-radius: 12px; margin-bottom: 20px;">
+  <h2>運動後の疼痛評価</h2>
+  <p>運動終了後の手指の痛みを教えてください。</p>
+
+  <p><strong id="postPainValue">0</strong> / 100</p>
+
+  <input
+    type="range"
+    id="postPainSlider"
+    min="0"
+    max="100"
+    value="0"
+    style="width: 100%;"
+  >
+
+  <p>0：痛みなし　100：想像できる最悪の痛み</p>
+
+  <button id="postPainButton" type="button">
+    痛みを記録して結果へ進む
+  </button>
+</div>
+
+    <div id="allDone" class="hera-hidden">
+      <h1>本日のHERA完了！</h1>
+      <p>10種目すべて終了しました。お疲れさまでした！</p>
+
+<div id="painComparison" style="background: #f3f7f2; padding: 20px; border-radius: 12px; margin: 20px 0;">
+  <h2>運動前後の疼痛評価</h2>
+  <p>運動前：<strong id="resultPrePain">--</strong> / 100</p>
+  <p>運動後：<strong id="resultPostPain">--</strong> / 100</p>
+  <p>疼痛スコアの変化：<strong id="resultPainChange">--</strong> ポイント</p>
+</div>
+
+      <button id="restartButton" type="button">最初からやり直す</button>
+    <p><a href="history.html">運動実施履歴を見る</a></p>
+<p><a href="pain_history.html">疼痛記録を見る</a></p>
+
+<p><a href="index.html">トップ画面に戻る</a></p>
+    </div>
+  </div>
+</main>
+
+  <script>
+    // 動画を追加するときは、同じフォルダにmp4を置き、video欄にファイル名を指定します。
+    // 説明文は仮案です。研究プロトコルの正式な指示に合わせて確認・修正してください。
+    
+const exercises = [
+  {
+    name: "拳曲げ運動",
+    group: "可動域訓練",
+    video: "拳曲げ運動_圧縮.mp4",
+    repetitions: "各動作5秒保持 × 10回",
+    description: "① 第1・2関節を曲げ、拳の関節を伸ばします。\n② 次に拳の関節を曲げ、第1・2関節を前方に伸ばします。"
+  },
+  {
+    name: "指曲げ運動",
+    group: "可動域訓練",
+    video: "グーパー運動_圧縮.mp4",
+    repetitions: "指定動作5秒保持 × 10回",
+    description: "① 拳の関節を伸ばした状態で、第1・2関節を曲げます。\n② 開始姿勢に戻します。\n③ 拳の関節と第2関節を曲げ、第1関節を伸ばします。\n④ 開始姿勢に戻します。\n⑤ 拳の関節と第1・2関節を曲げ、握り拳を作ります。\n①③⑤の姿勢をそれぞれ5秒間保持します。"
+  },
+  {
+    name: "指歩き運動",
+    group: "可動域訓練",
+    video: "指歩き運動_圧縮.mp4",
+    repetitions: "各指10回",
+    description: "指を閉じてテーブルに置きます。\n親指、人差し指、中指、薬指、小指の順に、指を伸ばしながら内側に動かします。\nすべての指を動かしたら開始姿勢に戻します。"
+  },
+  {
+    name: "手首回し運動",
+    group: "可動域訓練",
+    video: "手首回し運動_圧縮.mp4",
+    repetitions: "10回",
+    description: "手首を時計回りと反時計回りに動かします。"
+  },
+  {
+    name: "指開き運動",
+    group: "可動域訓練",
+    video: "指開き運動_圧縮.mp4",
+    repetitions: "5秒保持 × 10回",
+    description: "指を閉じた状態から、すべての指を外側に大きく開きます。\n開いた状態を5秒間保持します。"
+  },
+  {
+    name: "タオル握り運動",
+    group: "筋力強化訓練",
+    video: "タオル握り運動_圧縮.mp4",
+    repetitions: "3秒保持 × 10回",
+    description: "タオルを筒状に丸め、両手で握ります。\n7割程度の力で握り、3秒間保持します。"
+  },
+  {
+    name: "タオル摘み運動",
+    group: "筋力強化訓練",
+    video: "タオル摘み運動_圧縮.mp4",
+    repetitions: "各指10回",
+    description: "タオルを筒状に丸めます。\n人差し指、中指、薬指、小指の順にタオルを摘みます。\n7割程度の力で実施します。"
+  },
+  {
+    name: "タオル捻り運動",
+    group: "筋力強化訓練",
+    video: "タオル絞り運動_圧縮.mp4",
+    repetitions: "3秒保持 × 10回",
+    description: "タオルを筒状に丸め、両手で順手に持ちます。\n① 右手首を曲げ、左手首を反らして捻ります。\n② 反対方向にも捻ります。\n7割程度の力で実施します。"
+  },
+  {
+    name: "タオル手関節屈伸運動",
+    group: "筋力強化訓練",
+    video: "手首屈伸運動_圧縮.mp4",
+    repetitions: "各方向3秒保持 × 10回",
+    description: "タオルを縦長に畳んで半分に折ります。\n① 手首を曲げる運動：タオルを内側から持ち、手首を曲げます。\n② 手首を反らす運動：タオルを外側から持ち、手首を反らします。\n反対の手でタオルの下側を持ち、7割程度の力で左右とも実施します。"
+  },
+  {
+    name: "タオル指挟み運動",
+    group: "筋力強化訓練",
+   video: "タオル挟み運動_圧縮.mp4",
+    repetitions: "各指間10回",
+    description: "タオルを4つ折りにします。\n① 人差し指と中指\n② 中指と薬指\n③ 薬指と小指\nそれぞれの指の間にタオルを挟み、7割程度の力で実施します。"
+  }
+];
+
+    let currentIndex = 0;
+
+const RECORD_KEY = "hera_exercise_records_v1";
+
+function saveExerciseRecord(exerciseIndex) {
+const patientId = localStorage.getItem("hera_patient_id_v1");
+  const today = new Date();
+  const date = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0")
+  ].join("-");
+
+  let records = [];
+
+  try {
+    records = JSON.parse(localStorage.getItem(RECORD_KEY) || "[]");
+    if (!Array.isArray(records)) records = [];
+  } catch (error) {
+    records = [];
+  }
+
+  
+let record = records.find(item => item.date === date && item.patientId === patientId);
+
+
+  if (!record) {
+    
+record = { patientId, date, completed: [] };
+    records.push(record);
+  }
+
+  if (!record.completed.includes(exerciseIndex)) {
+    record.completed.push(exerciseIndex);
+    record.completed.sort((a, b) => a - b);
+  }
+
+  try {
+    localStorage.setItem(RECORD_KEY, JSON.stringify(records));
+  } catch (error) {
+    alert("運動記録を保存できませんでした。");
+  }
+}
+    const $ = id => document.getElementById(id);
+    const show = (id, visible) => $(id).classList.toggle("hera-hidden", !visible);
+
+    function renderExercise() {
+      
+const ex = exercises[currentIndex];
+
+const video = $("exerciseVideo");
+video.pause();
+      $("progress").textContent = `今日のHERA ${currentIndex + 1} / ${exercises.length}`;
+      $("category").textContent = `${ex.group} ${currentIndex < 5 ? currentIndex + 1 : currentIndex - 4} / 5`;
+      $("exerciseName").textContent = ex.name;
+      $("description").textContent = ex.description;
+      $("repetitions").textContent = ex.repetitions;
+      if (ex.video) {
+        video.src = ex.video;
+        video.load();
+        show("exerciseVideo", true);
+        show("videoPlaceholder", false);
+      } else {
+        show("exerciseVideo", false);
+        show("videoPlaceholder", true);
+      }
+      show("startButton", true);
+      show("completeArea", false);
+      show("nextArea", false);
+      show("exerciseControls", true);
+      show("allDone", false);
+      show("exerciseHeader", true);
+show("exerciseDetails", true);
+    }
+
+    $("startButton").addEventListener("click", () => {
+      const video = $("exerciseVideo");
+      
+if (exercises[currentIndex].video) {
+  video.play().catch((error) => {
+    console.error("動画再生エラー:", error);
+    $("videoPlaceholder").textContent =
+      "動画を再生できません。ファイル名と形式をご確認ください。";
+    show("videoPlaceholder", true);
+  });
+}
+      show("startButton", false);
+      show("completeArea", true);
+    });
+
+    $("completeButton").addEventListener("click", () => {
+      saveExerciseRecord(currentIndex);
+            const video = $("exerciseVideo");
+      video.pause();
+      if (video.readyState > 0) video.currentTime = 0;
+      $("completeMessage").textContent = `${exercises[currentIndex].name}が終了しました。` + (currentIndex === 4 ? " 可動域訓練は完了です。次は筋力強化訓練です。" : "");
+      $("nextButton").textContent = currentIndex === 9 ? "本日の結果へ →" : "次の運動へ →";
+      show("completeArea", false);
+      show("nextArea", true);
+    });
+
+    $("nextButton").addEventListener("click", () => {
+      if (currentIndex === exercises.length - 1) {
+       show("exerciseControls", false);
+show("exerciseHeader", false);
+show("exerciseDetails", false);
+show("exerciseVideo", false);
+show("videoPlaceholder", false);
+
+show("postPainScreen", true);
+show("allDone", false);
+
+        $("progress").textContent = "今日のHERA 10 / 10 完了";
+      } else {
+        currentIndex++;
+        renderExercise();
+      }
+    });
+
+    $("restartButton").addEventListener("click", () => {
+      currentIndex = 0;
+      renderExercise();
+    });
+
+ 
+    const prePainSlider = document.getElementById("prePainSlider");
+
+const prePainButton = document.getElementById("prePainButton");
+
+prePainButton.addEventListener("click", () => {
+  const painScore = Number(prePainSlider.value);
+
+  const today = new Date();
+  const date = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0")
+  ].join("-");
+
+  
+const painRecord = {
+  patientId: localStorage.getItem("hera_patient_id_v1"),
+  date: date,
+  prePain: painScore,
+  recordedAt: today.toISOString()
+};
+
+  try {
+    localStorage.setItem(
+      "hera_pre_pain_v1",
+      JSON.stringify(painRecord)
+    );
+
+const PAIN_HISTORY_KEY = "hera_pain_history_v1";
+
+const painHistory = JSON.parse(
+  localStorage.getItem(PAIN_HISTORY_KEY) || "[]"
+);
+
+
+const existingRecord = painHistory.find(
+  item => item.date === date &&
+          item.patientId === painRecord.patientId
+);
+
+if (existingRecord) {
+  existingRecord.prePain = painScore;
+} else {
+  
+painHistory.push({
+  patientId: painRecord.patientId,
+  date: date,
+  prePain: painScore,
+  postPain: null
+});
+}
+
+localStorage.setItem(
+  PAIN_HISTORY_KEY,
+  JSON.stringify(painHistory)
+);
+
+    alert("運動前の疼痛を記録しました。");
+
+show("prePainScreen", false);
+show("exerciseScreen", true);
+  } catch (error) {
+    alert("疼痛記録を保存できませんでした。");
+  }
+});
+
+    const prePainValue = document.getElementById("prePainValue");
+
+    prePainSlider.addEventListener("input", () => {
+      prePainValue.textContent = prePainSlider.value;
+    });
+
+document.getElementById("postPainButton").addEventListener("click", () => {
+  const painScore = Number(document.getElementById("postPainSlider").value);
+
+  const today = new Date();
+  const date = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0")
+  ].join("-");
+
+  const painRecord = {
+    date: date,
+    postPain: painScore,
+    recordedAt: today.toISOString()
+  };
+
+  try {
+    localStorage.setItem("hera_post_pain_v1", JSON.stringify(painRecord));
+
+const PAIN_HISTORY_KEY = "hera_pain_history_v1";
+
+const painHistory = JSON.parse(
+  localStorage.getItem(PAIN_HISTORY_KEY) || "[]"
+);
+
+const patientId = localStorage.getItem("hera_patient_id_v1");
+
+const existingRecord = painHistory.find(
+  item => item.date === date &&
+          item.patientId === patientId
+);
+
+if (existingRecord) {
+  existingRecord.postPain = painScore;
+} else {
+  
+painHistory.push({
+  patientId: patientId,
+  date: date,
+  prePain: null,
+  postPain: painScore
+});
+}
+
+localStorage.setItem(
+  PAIN_HISTORY_KEY,
+  JSON.stringify(painHistory)
+);
+
+    alert("運動後の疼痛を記録しました。");
+
+show("postPainScreen", false);
+showPainComparison();
+show("allDone", true);
+
+  } catch (error) {
+    alert("運動後の疼痛記録を保存できませんでした。");
+  }
+});
+
+function showPainComparison() {
+  const pre = JSON.parse(localStorage.getItem("hera_pre_pain_v1") || "null");
+  const post = JSON.parse(localStorage.getItem("hera_post_pain_v1") || "null");
+
+  if (!pre || !post || pre.date !== post.date) {
+    $("resultPrePain").textContent = "--";
+    $("resultPostPain").textContent = "--";
+    $("resultPainChange").textContent = "--";
+    return;
+  }
+
+  $("resultPrePain").textContent = pre.prePain;
+  $("resultPostPain").textContent = post.postPain;
+
+  const change = post.postPain - pre.prePain;
+  $("resultPainChange").textContent = change > 0 ? `+${change}` : change;
+}
+
+const postPainSlider = document.getElementById("postPainSlider");
+const postPainValue = document.getElementById("postPainValue");
+
+postPainSlider.addEventListener("input", () => {
+  postPainValue.textContent = postPainSlider.value;
+});
+
+    renderExercise();
+  </script>
+</body>
+</html>

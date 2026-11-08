@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HERA 未実施理由の履歴</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>HERA</h1>
+  <h2>未実施理由の履歴</h2>
+
+  <p id="patientInfo"></p>
+
+  <table border="1" cellpadding="8">
+    <thead>
+      <tr>
+        <th>未記録開始日</th>
+        <th>未記録終了日</th>
+        <th>日数</th>
+        <th>回答日</th>
+        <th>未実施理由</th>
+        <th>回答状況</th>
+      </tr>
+    </thead>
+    <tbody id="absenceHistoryBody"></tbody>
+  </table>
+<p><button type="button" id="exportAbsenceCsvButton">未実施理由をCSV出力</button></p>
+  <p><button onclick="location.href='index.html'">トップ画面に戻る</button></p>
+
+  <script>
+    const patientId = localStorage.getItem("hera_patient_id_v1");
+
+    document.getElementById("patientInfo").textContent =
+      "患者ID：" + (patientId || "未設定");
+
+    let records = [];
+
+    try {
+      records = JSON.parse(
+        localStorage.getItem("hera_absence_reasons_v1") || "[]"
+      );
+
+      if (!Array.isArray(records)) records = [];
+    } catch (error) {
+      records = [];
+    }
+
+    const patientRecords = records.filter(record =>
+      record && record.patientId === patientId
+    );
+// 未実施理由のCSV出力
+document.getElementById("exportAbsenceCsvButton")
+  .addEventListener("click", () => {
+
+    if (!patientId) {
+      alert("患者IDが設定されていません。");
+      return;
+    }
+
+    if (patientRecords.length === 0) {
+      alert("出力する未実施理由の記録がありません。");
+      return;
+    }
+
+    const headers = [
+      "患者ID",
+      "未記録開始日",
+      "未記録終了日",
+      "未記録日数",
+      "回答日",
+      "未実施理由",
+      "回答状況"
+    ];
+
+    // CSV内のカンマや改行に対応
+    const csvEscape = value => {
+      const text = String(value ?? "");
+      return '"' + text.replace(/"/g, '""') + '"';
+    };
+
+    const rows = patientRecords.map(record => [
+      record.patientId,
+      record.absenceStartDate || "",
+      record.absenceEndDate || "",
+      record.absentDays ?? "",
+      record.answerDate || "",
+      Array.isArray(record.reasons)
+        ? record.reasons.join("、")
+        : "",
+      record.skipped === true ? "回答見送り" : "回答済み"
+    ]);
+
+    const csv = [headers, ...rows]
+      .map(row => row.map(csvEscape).join(","))
+      .join("\r\n");
+
+    // Excelで日本語が文字化けしにくいUTF-8形式
+    const blob = new Blob(
+      ["\uFEFF" + csv],
+      { type: "text/csv;charset=utf-8;" }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `HERA_未実施理由_${patientId}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+    const tbody = document.getElementById("absenceHistoryBody");
+
+    if (patientRecords.length === 0) {
+      const row = tbody.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 6;
+      cell.textContent = "未実施理由の記録はありません。";
+    } else {
+      patientRecords.forEach(record => {
+        const row = tbody.insertRow();
+
+        const values = [
+          record.absenceStartDate || "—",
+          record.absenceEndDate || "—",
+          record.absentDays ?? "—",
+          record.answerDate || "—",
+          Array.isArray(record.reasons)
+            ? record.reasons.join("、") || "—"
+            : "—",
+          record.skipped === true ? "回答見送り" : "回答済み"
+        ];
+
+        values.forEach(value => {
+          const cell = row.insertCell();
+          cell.textContent = String(value);
+        });
+      });
+    }
+  </script>
+
+</body>
+</html>

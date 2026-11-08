@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>運動実施履歴 | HERA</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .history-wrap {
+      max-width: 520px;
+      margin: 30px auto;
+      padding: 0 20px 40px;
+    }
+    h1 { text-align: center; color: #247e70; }
+    .history-card {
+      background: #f3f7f2;
+      border-radius: 12px;
+      padding: 18px;
+      margin: 16px 0;
+    }
+    .history-bar {
+      height: 12px;
+      background: #e1e7df;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .history-fill {
+      height: 100%;
+      background: #477b30;
+    }
+    .history-links {
+      text-align: center;
+      margin-top: 30px;
+    }
+    .history-links a {
+      display: inline-block;
+      margin: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main class="history-wrap">
+    <h1>運動実施履歴</h1>
+
+<section id="calendarSection">
+  <h2>運動実施カレンダー</h2>
+  <div id="calendar"></div>
+
+<div id="dayDetails" style="display: none; background: #f3f7f2; padding: 18px; border-radius: 12px; margin-top: 20px;"></div>
+
+</section>
+<section class="history-card" id="adherenceSection">
+  <h2>運動アドヒアランス（28日間）</h2>
+  <p id="adherenceStartDate">開始日：未設定</p>
+  <p id="adherenceDays">達成日数：0日</p>
+  <p id="adherenceRate">運動実施率：--%</p>
+
+  <div class="history-bar">
+    <div class="history-fill" id="adherenceBar"
+         style="width: 0%;"></div>
+  </div>
+</section>
+    <p id="historySummary"></p>
+    <div id="historyList"></div>
+
+<p><button id="downloadHistoryCsvButton" type="button">運動実施履歴をCSVで保存</button></p>
+
+    <div class="history-links">
+      <a href="exercise_10.html">運動画面に戻る</a>
+      <a href="index.html">トップ画面に戻る</a>
+    </div>
+  </main>
+
+  <script>
+    const RECORD_KEY = "hera_exercise_records_v1";
+
+const exerciseNames = [
+  "拳曲げ",
+  "指曲げ",
+  "指歩き",
+  "手首回し",
+  "指開き",
+  "タオル握り",
+  "タオル摘み",
+  "タオル捻り",
+  "タオル手関節屈伸",
+  "タオル指挟み"
+];
+
+const downloadHistoryCsvButton = document.getElementById("downloadHistoryCsvButton");
+
+downloadHistoryCsvButton.addEventListener("click", () => {
+  let records = [];
+
+  try {
+    records = JSON.parse(
+      localStorage.getItem(RECORD_KEY) || "[]"
+    );
+
+    if (!Array.isArray(records)) {
+      records = [];
+    }
+  } catch (error) {
+    alert("運動実施履歴を読み込めませんでした。");
+    return;
+  }
+
+
+const patientId = localStorage.getItem("hera_patient_id_v1");
+
+const validRecords = records.filter(record =>
+  record &&
+  record.patientId === patientId &&
+  typeof record.date === "string" &&
+  Array.isArray(record.completed)
+);
+
+
+if (validRecords.length === 0) {
+  alert("保存する運動実施履歴がありません。");
+  return;
+}
+
+
+const rows = [
+  ["患者ID", "実施日", ...exerciseNames, "完了種目数", "完了種目名"],
+  ...validRecords.map(record => [
+    record.patientId,
+    record.date,
+    ...exerciseNames.map((_, i) =>
+      record.completed.some(n => Number(n) === i) ? 1 : 0
+    ),
+    record.completed.length,
+    record.completed.map(n => exerciseNames[Number(n)] ?? String(n)).join("・")
+  ])
+];
+
+const csv = rows.map(row => row.join(",")).join("\r\n");
+
+const blob = new Blob(["\uFEFF" + csv], {
+  type: "text/csv;charset=utf-8;"
+});
+
+const url = URL.createObjectURL(blob);
+const link = document.createElement("a");
+
+link.href = url;
+link.download = "HERA_運動実施履歴.csv";
+
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+
+setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+});
+
+    function renderHistory() {
+      const summary = document.getElementById("historySummary");
+      const list = document.getElementById("historyList");
+
+      let records = [];
+
+      try {
+        records = JSON.parse(
+          localStorage.getItem(RECORD_KEY) || "[]"
+        );
+        if (!Array.isArray(records)) records = [];
+      } catch (error) {
+        records = [];
+      }
+
+      
+const patientId = localStorage.getItem("hera_patient_id_v1");
+
+const validRecords = records.filter(
+  record => record &&
+    record.patientId === patientId &&
+    typeof record.date === "string" &&
+    Array.isArray(record.completed)
+);
+
+      validRecords.sort((a, b) =>
+        b.date.localeCompare(a.date)
+      );
+
+const uniqueDates = new Set(validRecords.map(record => record.date));
+
+summary.textContent =
+  `運動を実施した日数：${uniqueDates.size}日`;
+
+      list.replaceChildren();
+
+      if (validRecords.length === 0) {
+        list.textContent = "まだ運動記録はありません。";
+        return;
+      }
+
+      validRecords.forEach(record => {
+        const count = new Set(
+          record.completed.filter(
+            index => Number.isInteger(index) &&
+              index >= 0 && index < 10
+          )
+        ).size;
+
+        const card = document.createElement("div");
+        card.className = "history-card";
+
+        const label = document.createElement("p");
+        label.textContent =
+          `${record.date}　${count} / 10 種目`;
+
+        const bar = document.createElement("div");
+        bar.className = "history-bar";
+
+        const fill = document.createElement("div");
+        fill.className = "history-fill";
+        fill.style.width = `${count * 10}%`;
+
+        bar.appendChild(fill);
+        card.appendChild(label);
+        card.appendChild(bar);
+        list.appendChild(card);
+      });
+    }
+
+let displayedDate = new Date();
+displayedDate.setDate(1);
+
+    function renderCalendar() {
+      const calendar = document.getElementById("calendar");
+      const today = displayedDate;
+      const year = today.getFullYear();
+      const month = today.getMonth();
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+
+      let records = [];
+
+      try {
+        records = JSON.parse(
+          localStorage.getItem(RECORD_KEY) || "[]"
+        );
+        if (!Array.isArray(records)) records = [];
+      } catch (error) {
+        records = [];
+      }
+
+const patientId = localStorage.getItem("hera_patient_id_v1");
+
+records = records.filter(record =>
+  record &&
+  record.patientId === patientId &&
+  typeof record.date === "string" &&
+  Array.isArray(record.completed)
+);
+
+      const completionByDate = {};
+
+      records.forEach(record => {
+  if (!completionByDate[record.date]) {
+    completionByDate[record.date] = new Set();
+  }
+
+  record.completed.forEach(index => {
+    if (
+      Number.isInteger(index) &&
+      index >= 0 &&
+      index < 10
+    ) {
+      completionByDate[record.date].add(index);
+    }
+  });
+});
+
+// カレンダー表示用に種目数へ変換
+Object.keys(completionByDate).forEach(date => {
+  completionByDate[date] = completionByDate[date].size;
+});
+
+      const title = document.createElement("h3");
+      title.textContent = `${year}年${month + 1}月`;
+
+      const navigation = document.createElement("div");
+      navigation.style.display = "flex";
+      navigation.style.justifyContent = "space-between";
+      navigation.style.alignItems = "center";
+
+      const prevButton = document.createElement("button");
+      prevButton.textContent = "← 前の月";
+
+      const nextButton = document.createElement("button");
+      nextButton.textContent = "次の月 →";
+
+      navigation.appendChild(prevButton);
+      navigation.appendChild(title);
+      navigation.appendChild(nextButton);
+
+prevButton.addEventListener("click", () => {
+  displayedDate.setMonth(displayedDate.getMonth() - 1);
+  renderCalendar();
+});
+
+nextButton.addEventListener("click", () => {
+  displayedDate.setMonth(displayedDate.getMonth() + 1);
+  renderCalendar();
+});
+
+      const grid = document.createElement("div");
+      grid.style.display = "grid";
+      grid.style.gridTemplateColumns = "repeat(7, 1fr)";
+      grid.style.gap = "8px";
+      grid.style.textAlign = "center";
+
+      ["日", "月", "火", "水", "木", "金", "土"].forEach(day => {
+        const cell = document.createElement("div");
+        cell.textContent = day;
+        grid.appendChild(cell);
+      });
+
+      for (let i = 0; i < firstDay; i++) {
+        grid.appendChild(document.createElement("div"));
+      }
+
+      for (let day = 1; day <= lastDate; day++) {
+        const cell = document.createElement("div");
+        cell.textContent = day;
+        cell.style.padding = "10px 0";
+        cell.style.background = "#f3f7f2";
+        cell.style.borderRadius = "8px";
+
+        const dateKey =
+          `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+        const count = completionByDate[dateKey] || 0;
+
+        cell.style.cursor = "pointer";
+
+        
+        cell.addEventListener("click", () => {
+          const details = document.getElementById("dayDetails");
+
+          const exerciseNames = [
+            "拳曲げ運動",
+            "指曲げ運動",
+            "指歩き運動",
+            "手首回し運動",
+            "指開き運動",
+            "タオル握り運動",
+            "タオル摘み運動",
+            "タオル捻り運動",
+            "タオル手関節屈伸運動",
+            "タオル指挟み運動"
+          ];
+
+          const completed = new Set();
+
+          records.forEach(record => {
+            if (record && record.date === dateKey &&
+                Array.isArray(record.completed)) {
+              record.completed.forEach(index => {
+                if (Number.isInteger(index) &&
+                    index >= 0 && index < 10) {
+                  completed.add(index);
+                }
+              });
+            }
+          });
+
+          details.replaceChildren();
+
+          const heading = document.createElement("h3");
+          heading.textContent =
+            `${year}年${month + 1}月${day}日の運動記録`;
+          details.appendChild(heading);
+
+          const summary = document.createElement("p");
+          summary.textContent =
+            `${completed.size} / 10 種目完了`;
+          details.appendChild(summary);
+
+          exerciseNames.forEach((name, index) => {
+            const item = document.createElement("p");
+            item.textContent =
+              `${completed.has(index) ? "✓" : "－"} ${name}`;
+            item.style.color =
+              completed.has(index) ? "#247e70" : "#777777";
+            details.appendChild(item);
+          });
+
+          details.style.display = "block";
+        });
+
+        if (count === 10) {
+          cell.style.background = "#477b30";
+          cell.style.color = "white";
+          cell.style.fontWeight = "bold";
+        } else if (count > 0) {
+          cell.style.background = "#b9d9a7";
+          cell.style.color = "#203c20";
+        }
+
+        grid.appendChild(cell);
+      }
+
+      const legend = document.createElement("div");
+      legend.style.display = "flex";
+      legend.style.flexWrap = "wrap";
+      legend.style.gap = "12px";
+      legend.style.marginTop = "16px";
+      legend.style.fontSize = "13px";
+
+      [
+        ["#477b30", "10種目完了"],
+        ["#b9d9a7", "一部実施"],
+        ["#f3f7f2", "記録なし"]
+      ].forEach(([color, text]) => {
+        const item = document.createElement("span");
+        item.style.display = "inline-flex";
+        item.style.alignItems = "center";
+        item.style.gap = "5px";
+
+        const square = document.createElement("span");
+        square.style.display = "inline-block";
+        square.style.width = "14px";
+        square.style.height = "14px";
+        square.style.background = color;
+        square.style.border = "1px solid #d4ddd1";
+        square.style.borderRadius = "3px";
+
+        item.appendChild(square);
+        item.appendChild(document.createTextNode(text));
+        legend.appendChild(item);
+      });
+
+      calendar.replaceChildren(navigation, grid, legend);
+    }
+function renderAdherence() {
+  const patientId = localStorage.getItem("hera_patient_id_v1");
+
+  let records = [];
+
+  try {
+    records = JSON.parse(
+      localStorage.getItem(RECORD_KEY) || "[]"
+    );
+    if (!Array.isArray(records)) records = [];
+  } catch (error) {
+    records = [];
+  }
+
+  // 現在の患者IDの記録だけを使用
+  const validRecords = records.filter(record =>
+    record &&
+    record.patientId === patientId &&
+    typeof record.date === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(record.date) &&
+    Array.isArray(record.completed)
+  );
+
+  // 10種目すべてを完了した日を抽出
+  const completedDates = new Set();
+
+  // 日付ごとに完了した種目をまとめる
+const exercisesByDate = {};
+
+validRecords.forEach(record => {
+  if (!exercisesByDate[record.date]) {
+    exercisesByDate[record.date] = new Set();
+  }
+
+  record.completed.forEach(index => {
+    if (
+      Number.isInteger(index) &&
+      index >= 0 &&
+      index < 10
+    ) {
+      exercisesByDate[record.date].add(index);
+    }
+  });
+});
+
+// 1日の中で10種目完了した日を抽出
+Object.entries(exercisesByDate).forEach(([date, completed]) => {
+  if (completed.size === 10) {
+    completedDates.add(date);
+  }
+});
+
+  const startElement = document.getElementById("adherenceStartDate");
+  const daysElement = document.getElementById("adherenceDays");
+  const rateElement = document.getElementById("adherenceRate");
+  const barElement = document.getElementById("adherenceBar");
+
+  if (completedDates.size === 0) {
+    startElement.textContent = "開始日：未設定";
+    daysElement.textContent = "達成日数：0日";
+    rateElement.textContent = "運動実施率：--%";
+    barElement.style.width = "0%";
+    return;
+  }
+
+  // 最初に10種目を完了した日
+  const sortedDates = [...completedDates].sort();
+  const startDate = sortedDates[0];
+
+  // 日付の差を計算（時差の影響を避ける）
+  const toDayNumber = dateString => {
+    const [year, month, day] = dateString.split("-").map(Number);
+    return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+  };
+
+  const startDay = toDayNumber(startDate);
+
+  const today = new Date();
+  const todayDay = Math.floor(
+    Date.UTC(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    ) / 86400000
+  );
+
+  // 開始日を1日目として、最大28日間
+  const elapsedDays = Math.min(
+    28,
+    Math.max(1, todayDay - startDay + 1)
+  );
+
+  const achievedDays = [...completedDates].filter(date => {
+    const day = toDayNumber(date);
+    return day >= startDay &&
+           day < startDay + 28 &&
+           day <= todayDay;
+  }).length;
+
+  const rate = achievedDays / elapsedDays * 100;
+
+  startElement.textContent = `開始日：${startDate}`;
+  daysElement.textContent =
+    `達成日数：${achievedDays} / ${elapsedDays}日`;
+  rateElement.textContent =
+    `運動実施率：${rate.toFixed(1)}%`;
+
+  barElement.style.width = `${rate}%`;
+}
+    renderCalendar();
+renderHistory();
+renderAdherence();
+  </script>
+</body>
+</html>
